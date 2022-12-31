@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>TODO!</title>
+    <style>
+        ul {
+            list-style-type: none;
+            padding-left: 4px;
+        }
+
+        li {
+            margin-bottom: 6px;
+        }
+
+        .todo-label.completed {
+            font-style: italic;
+            text-decoration: line-through;
+        }
+
+        .modify-btn, .modify-confirm-btn, .remove-btn, ul label {
+            cursor: pointer;
+        }
+
+        .modify-btn:hover, .modify-btn:hover, .remove-btn:hover {
+            font-style: italic;
+        }
+
+        .modify-input {
+            display: none;
+        }
+
+        .modify-btn {
+            display: inline;
+        }
+
+        .modify-confirm-btn {
+            display: none;
+        }
+
+        .modify-btn.modifying {
+            display: none;
+        '
+        }
+
+        .todo-label.modifying {
+            display: none;
+        }
+
+        .modify-input.modifying {
+            display: inline;
+        }
+
+        .modify-confirm-btn.modifying {
+            display: inline;
+        }
+    </style>
+</head>
+<body>
+<h2>TODO</h2>
+
+<div>
+    <input type="text" id="todo-input" name="title" placeholder="todo..." autofocus/>
+    <button onClick="addTodo()">add</button>
+</div>
+
+<hr/>
+
+<div>
+    <ul class="todo-items"></ul>
+</div>
+
+<script type="text/javascript">
+    const init = () => {
+        window.addEventListener('DOMContentLoaded', () => {
+            getTodos();
+        });
+    }
+
+    init();
+
+    function getTodos() {
+        fetch('/todo')
+            .then((response) => response.json())
+            .then((todos) => {
+                console.log(todos);
+                renderTodos(todos);
+            })
+            .catch(error => console.error(error))
+    }
+
+    function toggleModifyMode(id) {
+        document.querySelector(`#todo-label-${id}`).classList.toggle("modifying");
+        document.querySelector(`#modify-input-${id}`).classList.toggle("modifying");
+        document.querySelector(`#modify-btn-${id}`).classList.toggle("modifying");
+        document.querySelector(`#confirm-btn-${id}`).classList.toggle("modifying");
+        const newTitle = document.querySelector(`#modify-input-${id}`);
+        newTitle.focus();
+    }
+
+    function createTodoElement(todo) {
+        const {id, title, done} = todo;
+        const li = document.createElement('li');
+
+        const checkbox = document.createElement('input');
+        checkbox.checked = done;
+        checkbox.setAttribute('type', 'checkbox');
+        checkbox.setAttribute('id', `chk-${id}`);
+        checkbox.addEventListener('click', () => modifyTodo(id));
+
+        const label = document.createElement('label');
+        label.setAttribute('id', `todo-label-${id}`);
+        label.setAttribute('for', `chk-${id}`);
+        label.classList.add('todo-label');
+        label.classList.add(done ? 'completed' : 'ongoing');
+        label.innerHTML = title;
+
+        const modifyInput = document.createElement('input');
+        modifyInput.setAttribute('type', 'text');
+        modifyInput.classList.add('modify-input');
+        modifyInput.setAttribute('id', `modify-input-${id}`)
+        modifyInput.setAttribute('value', title);
+
+        const modifyBtn = document.createElement('span');
+        modifyBtn.classList.add('modify-btn');
+        modifyBtn.setAttribute('id', `modify-btn-${id}`)
+        modifyBtn.addEventListener('click', () => toggleModifyMode(id));
+        modifyBtn.innerHTML = '✏️';
+
+        const confirmBtn = document.createElement('span');
+        confirmBtn.classList.add('modify-confirm-btn');
+        confirmBtn.setAttribute('id', `confirm-btn-${id}`)
+        confirmBtn.addEventListener('click', () => modifyTodo(id));
+        confirmBtn.innerHTML = '✔️️';
+
+        const removeBtn = document.createElement('span');
+        removeBtn.classList.add('remove-btn');
+        removeBtn.addEventListener('click', () => deleteTodo(id));
+        removeBtn.innerHTML = '🗑️️';
+
+        li.appendChild(checkbox)
+        li.appendChild(label);
+        li.appendChild(modifyInput);
+        li.appendChild(modifyBtn);
+        li.appendChild(confirmBtn);
+        li.appendChild(removeBtn);
+        return li;
+    }
+
+    function renderTodos(todos) {
+        const todoItems = document.querySelector('.todo-items');
+
+        // clear
+        todoItems.innerHTML = ''
+
+        // set
+        todos.forEach((todo) => {
+            const todoElement = createTodoElement(todo);
+            todoItems.appendChild(todoElement)
+        })
+    }
+
+    function addTodo() {
+        const todoInput = document.querySelector('#todo-input');
+        if (todoInput.value === "") {
+            alert("please input todo");
+            todoInput.focus();
+            return;
+        }
+
+        const title = document.querySelector('#todo-input').value;
+
+        const payload = {
+            title
+        }
+
+        fetch('/todo', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json;charset=UTF-8'
+            },
+            body: JSON.stringify(payload)
+        })
+            .then(res => {
+                if (res.status == 200) {
+                    getTodos();
+                }
+            })
+            .catch(err => console.error(err))
+    }
+
+    function modifyTodo(id) {
+        const title = document.querySelector('#modify-input-' + id).value;
+        const done = document.querySelector('#chk-' + id).checked;
+
+        const payload = {
+            id,
+            title,
+            done
+        }
+
+        fetch('/todo', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json;charset=UTF-8'
+            },
+            body: JSON.stringify(payload)
+        })
+            .then(res => {
+                if (res.status == 200) {
+                    getTodos();
+                }
+            })
+            .catch(err => console.error(err));
+    }
+
+    function deleteTodo(id) {
+        if (!confirm("do you want to remove this todo?")) {
+            return;
+        }
+
+        fetch('/todo/' + id, {
+            method: 'DELETE',
+        })
+            .then(res => {
+                if (res.status == 200) {
+                    getTodos();
+                }
+            })
+            .catch(err => console.error(err));
+    }
+</script>
+
+</body>
+</html>
